@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SIP 对话谱复核台</title>
+<style>
+  :root { --bg:#0f1420; --panel:#171e2e; --line:#273044; --fg:#dfe7f5; --mut:#8b98b0;
+          --accent:#5db1ff; --warn:#ffb86b; --bad:#ff6b7a; --ok:#7ee2a8; --early:#b892ff; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:13px/1.5 -apple-system,"PingFang SC",Segoe UI,sans-serif;
+         background:var(--bg); color:var(--fg); }
+  header { padding:10px 16px; background:#0b101b; border-bottom:1px solid var(--line);
+           display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  header h1 { font-size:15px; margin:0; font-weight:600; }
+  select,button,textarea,input { background:#0d1320; color:var(--fg); border:1px solid var(--line);
+           border-radius:6px; padding:5px 9px; font-size:12px; }
+  button { cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  .wrap { display:grid; grid-template-columns: 1.15fr 1fr; grid-template-rows: auto auto; gap:10px; padding:10px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px; min-width:0; }
+  .panel h2 { margin:0 0 8px; font-size:12px; color:var(--mut); text-transform:uppercase; letter-spacing:.08em; }
+  svg { width:100%; display:block; }
+  .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .chip { display:inline-block; padding:1px 7px; border-radius:99px; font-size:11px;
+          border:1px solid var(--line); margin:1px 3px 1px 0; cursor:pointer; }
+  .chip.proposed { color:var(--warn); border-color:#5a4523; }
+  .chip.accepted { color:var(--ok); border-color:#27523a; }
+  .chip.rejected { color:var(--bad); border-color:#5a2b31; text-decoration:line-through; }
+  .chip.ambiguous { color:var(--early); }
+  table { border-collapse:collapse; width:100%; font-size:12px; }
+  td,th { text-align:left; padding:3px 6px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr.hl { background:#20304d; }
+  .id { color:var(--mut); font-size:10.5px; word-break:break-all; }
+  textarea { width:100%; height:150px; }
+  .full { grid-column:1 / -1; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:6px; }
+  .muted { color:var(--mut); }
+  .err { color:var(--bad); } .okv{color:var(--ok)} .warnv{color:var(--warn)}
+  details { margin-top:6px; } summary { cursor:pointer; color:var(--accent); }
+  .srcpill { font-size:10px; color:var(--mut); }
+</style>
+</head>
+<body>
+<header>
+  <h1>SIP 对话谱复核台 · 事务分支 / 路由集 / 重传时间线</h1>
+  <select id="projectSel"></select>
+  <button onclick="newProject()">新建项目</button>
+  <button onclick="loadCaseList()">刷新案例</button>
+  <select id="caseSel"></select>
+  <button onclick="importCase()">导入案例 JSONL</button>
+  <button onclick="recompute()">重放</button>
+  <button onclick="exportData()">导出</button>
+  <label class="muted">导入归档:<input type="file" id="importFile" accept=".json"></label>
+  <span id="status" class="muted"></span>
+</header>
+
+<div class="wrap">
+  <section class="panel" id="pTimeline">
+    <h2>① 消息时序（方向 / 字节身份 / 连接代次 / 虚拟时间）</h2>
+    <div class="row">
+      <button onclick="showImport()">导入新片段 / 修订</button>
+      <button onclick="showParams()">参数修订</button>
+      <span id="importBox" style="display:none">
+        <textarea id="jsonl" placeholder="每行一条 JSON：dir/bytes/conn/gen/transport/time/basis"></textarea>
+        <label class="muted">revisionOf 记录id:<input id="revisionOf" class="mono" style="width:220px"></label>
+        <button onclick="doImport()">提交（不可变）</button>
+        <div id="importErrors" class="err"></div>
+      </span>
+    </div>
+    <div id="timelineSvg"></div>
+  </section>
+
+  <section class="panel" id="pTx">
+    <h2>② 事务状态机（含候选 / 拒绝原因）</h2>
+    <div id="txPanel"></div>
+  </section>
+
+  <section class="panel" id="pDialog">
+    <h2>③ Dialog 谱系（early 多分叉 → confirmed）与 ④ Route set</h2>
+    <div id="dialogSvg"></div>
+    <div id="dialogDetail"></div>
+  </section>
+
+  <section class="panel" id="pTimer">
+    <h2>⑤ 定时器决定（虚拟时钟）/ 重传 / 连接代次</h2>
+    <div id="timerPanel"></div>
+  </section>
+
+  <section class="panel full" id="pReview">
+    <h2>⑥ 候选 · 人工裁定 · 事件历史（可回到任意旧事件）</h2>
+    <div id="candidatePanel"></div>
+    <h2 style="margin-top:12px">事件与版本</h2>
+    <div id="historyPanel"></div>
+  </section>
+
+  <section class="panel full" id="pDetail">
+    <h2>详情 / 直接来源 / 计算步骤（每个显示值都有稳定身份）</h2>
+    <div id="detail" class="muted">点击任何图元查看来源链。</div>
+  </section>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
